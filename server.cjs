@@ -11,8 +11,9 @@ function createServer({hub=new RaceHub(),allowedOrigins=[]}={}){
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin')}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
   try{
+   if(url.pathname==='/api/session'&&req.method==='GET'){hub.auth(url.searchParams.get('token'));json(res,200,{ok:true});return}
    if(url.pathname==='/api/rooms'&&req.method==='GET'){json(res,200,{rooms:hub.list()});return}
-   if(url.pathname==='/api/health'){json(res,200,{ok:true,rooms:hub.rooms.size});return}
+   if(url.pathname==='/api/health'){json(res,200,{ok:true,version:require('./package.json').version,rooms:hub.rooms.size});return}
    if(url.pathname==='/api/events'&&req.method==='GET'){
     const token=url.searchParams.get('token');hub.touch(token);if(streams.has(token))streams.get(token).end();res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});res.write('retry: 1000\n\n');streams.set(token,res);res.write(`data: ${JSON.stringify(hub.snapshot(token))}\n\n`);req.on('close',()=>{if(streams.get(token)===res){streams.delete(token);hub.disconnect(token)}});return
    }
