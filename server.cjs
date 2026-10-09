@@ -11,6 +11,7 @@ function createServer({hub=new RaceHub(),allowedOrigins=[]}={}){
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin')}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
   try{
+   if(url.pathname==='/api/rooms'&&req.method==='GET'){json(res,200,{rooms:hub.list()});return}
    if(url.pathname==='/api/health'){json(res,200,{ok:true,rooms:hub.rooms.size});return}
    if(url.pathname==='/api/events'&&req.method==='GET'){
     const token=url.searchParams.get('token');hub.touch(token);if(streams.has(token))streams.get(token).end();res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});res.write('retry: 1000\n\n');streams.set(token,res);res.write(`data: ${JSON.stringify(hub.snapshot(token))}\n\n`);req.on('close',()=>{if(streams.get(token)===res){streams.delete(token);hub.disconnect(token)}});return
@@ -20,6 +21,8 @@ function createServer({hub=new RaceHub(),allowedOrigins=[]}={}){
     let chunks='',tooLarge=false;for await(const chunk of req){chunks+=chunk;if(chunks.length>4096){tooLarge=true;break}}if(tooLarge){json(res,413,{error:'요청이 너무 큽니다.'});return}
     const body=JSON.parse(chunks||'{}');
     if(url.pathname==='/api/join')json(res,200,hub.join(body));
+    else if(url.pathname==='/api/ready')json(res,200,hub.ready(body.token,body.ready));
+    else if(url.pathname==='/api/start')json(res,200,hub.start(body.token));
     else if(url.pathname==='/api/profile'){json(res,200,hub.profile(body.token,body.profile||{}))}
     else if(url.pathname==='/api/input'){hub.input(body.token,body.input||{});json(res,200,{ok:true})}
     else if(url.pathname==='/api/leave'){hub.leave(body.token);streams.get(body.token)?.end();streams.delete(body.token);json(res,200,{ok:true})}
@@ -27,7 +30,7 @@ function createServer({hub=new RaceHub(),allowedOrigins=[]}={}){
    }
    // Serve only game assets; credentials, server source and dotfiles are never served.
    const relative=decodeURIComponent(url.pathname).replace(/^\//,'')||'index.html';
-   const files=['index.html','game3d.js','blender_car_asset.js','three.min.js','landing.css','online-client.js','online.css','runtime-config.js'];
+   const files=['index.html','game3d.js','blender_car_asset.js','three.min.js','landing.css','online-client.js','rooms.js','online.css','runtime-config.js'];
    if(!files.includes(relative)&&!/^assets\/[a-zA-Z0-9_-]+\.(png|jpg|jpeg|webp|svg)$/.test(relative)){res.writeHead(404);res.end('Not found');return}
    const file=path.join(root,relative);if(!fs.existsSync(file)){res.writeHead(404);res.end('Not found');return}
    const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp'};res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache'});fs.createReadStream(file).pipe(res);
