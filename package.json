@@ -1,0 +1,11 @@
+{
+  "name": "apex-rush-online-server",
+  "version": "46.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.cjs"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}

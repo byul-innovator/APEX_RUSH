@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: apex-rush-online
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: ALLOWED_ORIGINS
+        value: https://apexracer.vercel.app,https://apexracer-airtype-4580.vercel.app
